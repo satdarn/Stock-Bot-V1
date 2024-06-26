@@ -21,7 +21,7 @@ class Layer:
         pass
     def backward(self, output_gradient, learning_rate):
         pass
-        
+
 class Dense(Layer):
     def __init__(self, input_size, output_size):
         super().__init__()
@@ -31,7 +31,7 @@ class Dense(Layer):
         self.input = input
         return np.dot(self.weights, self.input) + self.bias
     def backward(self, output_gradient, learning_rate):
-        weights_gradient = np.dot(output_gradient, self.input.T)
+        weights_gradient = np.dot(output_gradient, self.input)
         input_gradients = np.dot(self.weights.T, output_gradient)
         self.weights -= learning_rate * weights_gradient
         self.bias -= learning_rate * output_gradient
@@ -47,7 +47,7 @@ class Activation(Layer):
         return self.activation(self.input)
     def backward(self, output_gradient, learning_rate):
         return np.multiply(output_gradient, self.activation_prime(self.input))
-    
+
 class Tanh(Activation):
     def __init__(self):
         tanh = lambda x: np.tanh(x)
@@ -79,34 +79,36 @@ class Softmax(Layer):
         return np.dot((np.identity(n) - self.output.T) * self.output, output_gradient)
 
 class Network:
-    def __init__(self, network):
+    def __init__(self, network, input_size, output_size):
         self.network = network
-
+        self.input_size = input_size
+        self.output_size = output_size
     def predict(self, input):
         output = input
-        output = np.reshape(output  , (784, 1))
+        output = np.reshape(output, (self.input_size, 1))
         for layer in self.network:
             output = layer.forward(output)
         return output
-    
-    def train(self, loss, loss_prime, xtrain, ytrain, epochs = 100, learning_rate = 0.01, one_hot = False, verbose = False):
+
+    def train(self, loss, loss_prime, xtrain, ytrain, epochs = 100, learning_rate = 0.01, verbose = False):
         for e in range(epochs):
             error = 0 
             for x,y in zip(xtrain, ytrain):
 
                 output = self.predict(x)
-                onehot = np.zeros((10,1))
-                onehot[y] = 1
-                error += loss(onehot, output)
 
-                grad = loss_prime(onehot, output)
+                error += loss(y, output)
+                grad = loss_prime(y.T, output.T)
+                print(grad)
                 for layer in reversed(self.network):
+                    print(grad)
                     grad = layer.backward(grad, learning_rate)
+                    
             error /= len(xtrain)
-            
+
             if verbose:
                 print(f"epoachs:{e+1}, error={error}")
-   
+
     def test(self, xtest, ytest):
         print("----------------------TESTING----------------------")
         correct = 0

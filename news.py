@@ -13,6 +13,6 @@ domains = 'bloomberg.com,businessinsider.com,fortune.com,wsj.com'
 def get_stock_news(stock: Stock, start_date: datetime, end_date: datetime):
     articles = newsapi.get_everything(q = stock.company_name, domains=domains, sources=sources, from_param=start_date, to=end_date, sort_by="relevancy")
     return articles["articles"]
-
-with open("articles.json", "w") as file:
-    file.write(json.dumps(get_stock_news(tesla, start, end)))
+def get_headlines(stock: Stock, start_date: datetime, end_date: datetime):
+    articles = get_stock_news(stock, start_date, end_date)
+    return articles["articles"]

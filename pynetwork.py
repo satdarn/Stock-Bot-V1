@@ -31,7 +31,7 @@ class Dense(Layer):
         self.input = input
         return np.dot(self.weights, self.input) + self.bias
     def backward(self, output_gradient, learning_rate):
-        weights_gradient = np.dot(output_gradient, self.input)
+        weights_gradient = np.dot(output_gradient, self.input.T)
         input_gradients = np.dot(self.weights.T, output_gradient)
         self.weights -= learning_rate * weights_gradient
         self.bias -= learning_rate * output_gradient
@@ -79,31 +79,29 @@ class Softmax(Layer):
         return np.dot((np.identity(n) - self.output.T) * self.output, output_gradient)
 
 class Network:
-    def __init__(self, network, input_size, output_size):
+    def __init__(self, network, inputs, outputs):
         self.network = network
-        self.input_size = input_size
-        self.output_size = output_size
+        self.inputs = inputs
+        self.outputs = outputs
+
     def predict(self, input):
         output = input
-        output = np.reshape(output, (self.input_size, 1))
+        output = np.reshape(output  , (self.inputs, 1))
         for layer in self.network:
             output = layer.forward(output)
         return output
 
-    def train(self, loss, loss_prime, xtrain, ytrain, epochs = 100, learning_rate = 0.01, verbose = False):
+    def train(self, loss, loss_prime, xtrain, ytrain, epochs = 100, learning_rate = 0.01, one_hot = False, verbose = False):
         for e in range(epochs):
             error = 0 
             for x,y in zip(xtrain, ytrain):
 
                 output = self.predict(x)
-
                 error += loss(y, output)
-                grad = loss_prime(y.T, output.T)
-                print(grad)
+
+                grad = loss_prime(y, output.T).T
                 for layer in reversed(self.network):
-                    print(grad)
                     grad = layer.backward(grad, learning_rate)
-                    
             error /= len(xtrain)
 
             if verbose:
@@ -121,10 +119,11 @@ class Network:
         print(f"accuracy{correct/total}")
         return correct/total
 
-    def import_network(path):
+    def import_network(self, path):
         struct = []
         with open(path, "rb") as file:
             in_network = pickle.load(file)
+        inputs, outputs = in_network[0][0], in_network[0][1]
         for layer in in_network:
             if isinstance(layer, Dense):
                 struct.append(layer)
@@ -136,12 +135,12 @@ class Network:
                 struct.append(Tanh())
             if layer == "relu":
                 struct.append(Relu())
-        return Network(struct)
+        return Network(struct, inputs, outputs)
 
 
-    def export_network(network, path):
+    def export_network(self, network, path):
         struct = network.network
-        out_network = []
+        out_network = [[network.inputs, network.outputs]]
         for layer in struct:
             if isinstance(layer, Dense):
                 out_network.append(layer)

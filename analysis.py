@@ -1,14 +1,30 @@
-from news import get_stock_news
-from trade import Stock
+from news import get_headlines
+from trade import Stock, start, end
 from datetime import datetime
-from transformers import pipeline
+from transformers import AutoTokenizer
+from transformers import AutoModelForSequenceClassification
+from scipy.special import softmax
 
-pipe = pipeline("text-classification", model="mrm8488/distilroberta-finetuned-financial-news-sentiment-analysis")
+MODEL = f"cardiffnlp/twitter-roberta-base-sentiment"
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL)
+
 
 def get_sentiment(stock: Stock, start:datetime, end:datetime):
-    sentiment = []
-    articles = get_stock_news(stock, start, end)
-    sentiment_analysis = pipeline("sentiment-analysis")
-    for article in articles:
-        sentiment = sentiment_analysis(article["title"])
-        sentiment.append(sentiment[0]["label"])
+    sentiments = []
+    stock_headlines_df = get_headlines(stock, start, end)
+    for headline in stock_headlines_df["headlines"]:
+        encoded_text  = tokenizer(headline, return_tensors="pt")
+        out = model(**encoded_text)
+        scores = out[0][0].detach().numpy()
+        scores = [scores[0], scores[2]]
+        scores = softmax(scores)
+        sentiment = scores[1] - scores[0]
+        sentiments.append(sentiment)
+    stock_headlines_df["sentiment"] = sentiments
+    return stock_headlines_df
+        
+tesla = Stock("TSLA", "tesla")
+print(get_sentiment(tesla, start, end))
+
+
